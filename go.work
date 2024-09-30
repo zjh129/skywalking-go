@@ -29,6 +29,7 @@ use (
 	./plugins/segmentio-kafka
 	./plugins/go-elasticsearchv8
 	./plugins/goframe
+	./plugins/go-zero
 
 	./test/benchmark-codebase/consumer
 	./test/benchmark-codebase/provider
