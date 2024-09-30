@@ -1,0 +1,26 @@
+syntax = "proto3";
+
+package user;
+
+option go_package = "./userpb";
+
+service User {
+    //用户查找
+    rpc UserFind(UserFindReq) returns (UserInfo);
+}
+
+message Empty {}
+//用户信息
+message UserInfo {
+    int64 id = 1;
+    string uuid = 2;
+    string name = 3;
+    string mobile = 4;
+    string email = 5;
+    string created_at = 7;
+    string updated_at = 8;
+}
+//用户查找请求
+message UserFindReq {
+    int64 id = 1;
+}
