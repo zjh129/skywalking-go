@@ -4,9 +4,9 @@ import (
 	"context"
 	"github.com/apache/skywalking-go/plugins/core/operator"
 	"github.com/apache/skywalking-go/plugins/core/tracing"
-	"github.com/go-kratos/kratos/v2/transport"
 	"github.com/zeromicro/go-zero/zrpc"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/metadata"
 )
 
 type ServerMiddlewareInterceptor struct {
@@ -27,23 +27,28 @@ func (h *ServerMiddlewareInterceptor) AfterInvoke(invocation operator.Invocation
 // RpcServeInterceptor is a grpc server interceptor that creates a new span for each incoming request.
 var RpcServeInterceptor = func(invocation operator.Invocation) grpc.UnaryServerInterceptor {
 	return func(ctx context.Context, req any, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp any, err error) {
-		if tr, ok := transport.FromServerContext(ctx); ok {
-			span, err := tracing.CreateEntrySpan(info.FullMethod, func(key string) (string, error) {
-				return tr.RequestHeader().Get(key), nil
-			}, tracing.WithComponent(5023),
-				tracing.WithLayer(tracing.SpanLayerRPCFramework),
-				tracing.WithTag("transport", "gRPC"))
-			if err != nil {
-				return handler(ctx, req)
+		span, err := tracing.CreateEntrySpan(info.FullMethod, func(headerKey string) (string, error) {
+			md, ok := metadata.FromIncomingContext(ctx)
+			if !ok {
+				return "", nil
 			}
-			defer span.End()
-
-			reply, err := handler(ctx, req)
-			if err != nil {
-				span.Error(err.Error())
+			values := md.Get(headerKey)
+			if len(values) == 0 || len(values[0]) == 0 {
+				return "", nil
 			}
-			return reply, err
+			return values[0], nil
+		}, tracing.WithComponent(5023),
+			tracing.WithLayer(tracing.SpanLayerRPCFramework),
+			tracing.WithTag("transport", "gRPC"))
+		if err != nil {
+			return handler(ctx, req)
 		}
-		return handler(ctx, req)
+		defer span.End()
+
+		reply, err := handler(ctx, req)
+		if err != nil {
+			span.Error(err.Error())
+		}
+		return reply, err
 	}
 }
